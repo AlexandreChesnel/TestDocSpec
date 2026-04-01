@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Générateur de spécifications</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #f7f6f3;
+      --surface:  #ffffff;
+      --border:   #e2e0da;
+      --border2:  #c8c5bc;
+      --text:     #1a1917;
+      --muted:    #6b6860;
+      --accent:   #2563eb;
+      --accent-bg:#eff4ff;
+      --success:  #16a34a;
+      --success-bg:#f0fdf4;
+      --warning:  #d97706;
+      --radius:   10px;
+      --radius-lg:14px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ── */
+    .shell {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* ── Header ── */
+    .app-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      gap: 1rem;
+    }
+    .app-header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .app-header p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .api-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--success);
+      background: var(--success-bg);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .api-badge::before { content: '●'; font-size: 8px; }
+
+    /* ── API Key banner ── */
+    .key-banner {
+      background: var(--accent-bg);
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .key-banner .icon { font-size: 18px; flex-shrink: 0; }
+    .key-banner-text { flex: 1; min-width: 180px; }
+    .key-banner-text strong { display: block; font-size: 13px; color: var(--accent); }
+    .key-banner-text span { font-size: 12px; color: var(--muted); }
+    .key-banner a { font-size: 12px; color: var(--accent); text-decoration: underline; }
+    .key-input-wrap { display: flex; gap: 8px; flex: 2; min-width: 240px; }
+    .key-input-wrap input {
+      flex: 1;
+      padding: 7px 10px;
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: monospace;
+      background: white;
+    }
+    .key-input-wrap input:focus { outline: none; border-color: var(--accent); }
+    .btn-save-key {
+      padding: 7px 14px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-save-key:hover { background: #1d4ed8; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 2px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+    }
+    .tab {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color .15s;
+    }
+    .tab.active { color: var(--text); border-bottom-color: var(--text); }
+    .tab:hover:not(.active) { color: var(--text); }
+    .tab-badge {
+      display: inline-block;
+      background: var(--success);
+      color: white;
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 10px;
+      margin-left: 4px;
+    }
+
+    /* ── Doc type cards ── */
+    .doc-types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+    .doc-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      background: var(--surface);
+    }
+    .doc-card:hover { border-color: var(--border2); }
+    .doc-card.selected { border: 2px solid var(--accent); background: var(--accent-bg); }
+    .doc-card .emoji { font-size: 20px; margin-bottom: 6px; }
+    .doc-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+    .doc-card p { font-size: 12px; color: var(--muted); line-height: 1.4; }
+    .doc-card.selected p { color: #3b82f6; }
+
+    /* ── Sections ── */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Fields ── */
+    .field { margin-bottom: .9rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: var(--text);
+    }
+    .field label .req { color: #ef4444; margin-left: 2px; }
+    .field input, .field textarea, .field select {
+      width: 100%;
+      padding: 8px 11px;
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      background: var(--surface);
+      color: var(--text);
+      transition: border-color .15s;
+    }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.55; }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.08);
+    }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+    /* ── Tags ── */
+    .tag-group { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .tag {
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      background: var(--surface);
+      color: var(--muted);
+      transition: all .12s;
+      user-select: none;
+    }
+    .tag:hover { border-color: var(--border2); color: var(--text); }
+    .tag.on { background: var(--accent-bg); border-color: #93c5fd; color: var(--accent); font-weight: 500; }
+
+    /* ── Detail level ── */
+    .detail-options { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 6px; }
+    .detail-opt {
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      background: var(--surface);
+      transition: all .12s;
+    }
+    .detail-opt:hover { border-color: var(--border2); }
+    .detail-opt.on { border-color: var(--accent); background: var(--accent-bg); }
+    .detail-opt strong { display: block; font-size: 12px; font-weight: 600; }
+    .detail-opt span { font-size: 11px; color: var(--muted); }
+    .detail-opt.on span { color: #3b82f6; }
+
+    /* ── Actions ── */
+    .actions { display: flex; gap: 10px; margin-top: 1.5rem; flex-wrap: wrap; align-items: center; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px;
+      background: var(--text); color: var(--bg);
+      border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      transition: opacity .15s;
+    }
+    .btn-primary:hover { opacity: .85; }
+    .btn-primary:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 16px;
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 8px; font-size: 13px;
+      cursor: pointer; font-family: inherit;
+      transition: all .12s;
+    }
+    .btn-ghost:hover { border-color: var(--border2); color: var(--text); background: var(--surface); }
+
+    /* ── Progress ── */
+    .progress-wrap { margin-top: 10px; }
+    .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width .3s ease; }
+    .status-msg { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 18px; }
+    .status-msg.error { color: #dc2626; }
+
+    /* ── Result ── */
+    .result-header {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 1rem;
+      margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .result-meta strong { font-size: 15px; font-weight: 600; }
+    .result-meta span { font-size: 12px; color: var(--muted); display: block; margin-top: 2px; }
+    .result-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .result-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      max-height: 520px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      font-family: inherit;
+      color: var(--text);
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid transparent;
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin .55s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .doc-types { grid-template-columns: 1fr; }
+      .grid2, .grid3 { grid-template-columns: 1fr; }
+      .detail-options { grid-template-columns: 1fr; }
+      .app-header { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Header -->
+  <div class="app-header">
+    <div>
+      <h1>Générateur de spécifications</h1>
+      <p>Créez vos SFD et STD en quelques minutes grâce à l'IA</p>
+    </div>
+    <div class="api-badge">Gemini — gratuit</div>
+  </div>
+
+  <!-- Clé API -->
+  <div class="key-banner" id="keyBanner">
+    <div class="icon">🔑</div>
+    <div class="key-banner-text">
+      <strong>Clé API Google Gemini requise</strong>
+      <span>Gratuite · 1 500 requêtes/jour · <a href="https://aistudio.google.com/app/apikey" target="_blank">Obtenir ma clé →</a></span>
+    </div>
+    <div class="key-input-wrap">
+      <input type="password" id="apiKeyInput" placeholder="AIza..." />
+      <button class="btn-save-key" onclick="saveKey()">Enregistrer</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" id="tabForm" onclick="showTab('form')">Formulaire</button>
+    <button class="tab" id="tabResult" onclick="showTab('result')" style="display:none">
+      Résultat <span class="tab-badge" id="tabBadge" style="display:none">✓</span>
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════ FORMULAIRE ═══════════════════════════════ -->
+  <div id="panelForm">
+
+    <!-- Type de document -->
+    <div class="doc-types">
+      <div class="doc-card selected" id="cardSFD" onclick="setDocType('sfd')">
+        <div class="emoji">📋</div>
+        <h3>SFD</h3>
+        <p>Spécifications fonctionnelles — besoins, cas d'usage, règles métier</p>
+      </div>
+      <div class="doc-card" id="cardSTD" onclick="setDocType('std')">
+        <div class="emoji">⚙️</div>
+        <h3>STD</h3>
+        <p>Spécifications techniques — architecture, API, base de données</p>
+      </div>
+      <div class="doc-card" id="cardBOTH" onclick="setDocType('both')">
+        <div class="emoji">📦</div>
+        <h3>SFD + STD</h3>
+        <p>Document complet fonctionnel et technique combiné</p>
+      </div>
+    </div>
+
+    <!-- Informations générales -->
+    <div class="section">
+      <div class="section-title">Informations générales</div>
+      <div class="grid2">
+        <div class="field">
+          <label>Nom du projet <span class="req">*</span></label>
+          <input id="fName" type="text" placeholder="ex : Portail RH v2.0" />
+        </div>
+        <div class="field">
+          <label>Version</label>
+          <input id="fVersion" type="text" value="1.0.0" />
+        </div>
+      </div>
+      <div class="grid3">
+        <div class="field">
+          <label>Auteur</label>
+          <input id="fAuthor" type="text" placeholder="Jean Dupont" />
+        </div>
+        <div class="field">
+          <label>Client / Commanditaire</label>
+          <input id="fClient" type="text" placeholder="Acme Corp" />
+        </div>
+        <div class="field">
+          <label>Date cible</label>
+          <input id="fDate" type="date" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Contexte -->
+    <div class="section">
+      <div class="section-title">Contexte du projet</div>
+      <div class="field">
+        <label>Description et objectifs <span class="req">*</span></label>
+        <textarea id="fDesc" rows="4" placeholder="Décrivez le projet, ses objectifs et la problématique qu'il résout…"></textarea>
+      </div>
+      <div class="field">
+        <label>Périmètre fonctionnel</label>
+        <textarea id="fScope" rows="3" placeholder="Fonctionnalités incluses et exclues du périmètre…"></textarea>
+      </div>
+      <div class="field">
+        <label>Utilisateurs cibles</label>
+        <input id="fUsers" type="text" placeholder="ex : Gestionnaires RH, Employés, Managers" />
+      </div>
+    </div>
+
+    <!-- Modules fonctionnels -->
+    <div class="section">
+      <div class="section-title">Modules fonctionnels</div>
+      <div class="field">
+        <label>Modules / fonctionnalités principales</label>
+        <div class="tag-group" id="tagModules">
+          <span class="tag" onclick="tog(this)">Authentification</span>
+          <span class="tag" onclick="tog(this)">Tableau de bord</span>
+          <span class="tag" onclick="tog(this)">Gestion des utilisateurs</span>
+          <span class="tag" onclick="tog(this)">Notifications</span>
+          <span class="tag" onclick="tog(this)">Reporting</span>
+          <span class="tag" onclick="tog(this)">Import / Export</span>
+          <span class="tag" onclick="tog(this)">Recherche avancée</span>
+          <span class="tag" onclick="tog(this)">Workflow d'approbation</span>
+          <span class="tag" onclick="tog(this)">API REST</span>
+          <span class="tag" onclick="tog(this)">Application mobile</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Autres modules spécifiques</label>
+        <input id="fCustomMod" type="text" placeholder="ex : Module de facturation, Synchronisation ERP…" />
+      </div>
+      <div class="field">
+        <label>Contraintes métier</label>
+        <textarea id="fBiz" rows="3" placeholder="ex : RGPD, règles de validation, délais légaux…"></textarea>
+      </div>
+    </div>
+
+    <!-- Stack technique -->
+    <div class="section">
+      <div class="section-title">Contexte technique</div>
+      <div class="grid2">
+        <div class="field">
+          <label>Frontend</label>
+          <div class="tag-group" id="tagFront">
+            <span class="tag" onclick="tog(this)">React</span>
+            <span class="tag" onclick="tog(this)">Vue.js</span>
+            <span class="tag" onclick="tog(this)">Angular</span>
+            <span class="tag" onclick="tog(this)">Next.js</span>
+            <span class="tag" onclick="tog(this)">HTML / CSS</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Backend</label>
+          <div class="tag-group" id="tagBack">
+            <span class="tag" onclick="tog(this)">Node.js</span>
+            <span class="tag" onclick="tog(this)">Python / Django</span>
+            <span class="tag" onclick="tog(this)">Java / Spring</span>
+            <span class="tag" onclick="tog(this)">PHP / Laravel</span>
+            <span class="tag" onclick="tog(this)">.NET</span>
+          </div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Base de données</label>
+          <div class="tag-group" id="tagDB">
+            <span class="tag" onclick="tog(this)">PostgreSQL</span>
+            <span class="tag" onclick="tog(this)">MySQL</span>
+            <span class="tag" onclick="tog(this)">MongoDB</span>
+            <span class="tag" onclick="tog(this)">Redis</span>
+            <span class="tag" onclick="tog(this)">SQL Server</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Infrastructure</label>
+          <div class="tag-group" id="tagInfra">
+            <span class="tag" onclick="tog(this)">AWS</span>
+            <span class="tag" onclick="tog(this)">Azure</span>
+            <span class="tag" onclick="tog(this)">GCP</span>
+            <span class="tag" onclick="tog(this)">Docker / Kubernetes</span>
+            <span class="tag" onclick="tog(this)">On-premise</span>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Intégrations / systèmes existants</label>
+        <input id="fInteg" type="text" placeholder="ex : SAP, Salesforce, API partenaires…" />
+      </div>
+      <div class="field">
+        <label>Exigences non fonctionnelles</label>
+        <div class="tag-group" id="tagNFR">
+          <span class="tag" onclick="tog(this)">Performance (&lt; 2 s)</span>
+          <span class="tag" onclick="tog(this)">Haute disponibilité</span>
+          <span class="tag" onclick="tog(this)">RGPD</span>
+          <span class="tag" onclick="tog(this)">SSO / SAML</span>
+          <span class="tag" onclick="tog(this)">Multi-tenant</span>
+          <span class="tag" onclick="tog(this)">Accessibilité WCAG</span>
+          <span class="tag" onclick="tog(this)">Audit logs</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Niveau de détail -->
+    <div class="section">
+      <div class="section-title">Options de génération</div>
+      <div class="field">
+        <label>Niveau de détail</label>
+        <div class="detail-options">
+          <div class="detail-opt" id="detEss" onclick="setDetail('essentiel')">
+            <strong>Essentiel</strong>
+            <span>Sections clés uniquement</span>
+          </div>
+          <div class="detail-opt on" id="detStd" onclick="setDetail('standard')">
+            <strong>Standard</strong>
+            <span>Document complet</span>
+          </div>
+          <div class="detail-opt" id="detDet" onclick="setDetail('detaille')">
+            <strong>Détaillé</strong>
+            <span>Exhaustif avec exemples</span>
+          </div>
+        </div>
+      </div>
+      <div class="field" style="margin-top:.75rem">
+        <label>Informations complémentaires</label>
+        <textarea id="fExtra" rows="3" placeholder="Tout autre contexte utile pour la génération…"></textarea>
+      </div>
+    </div>
+
+    <!-- Boutons -->
+    <div class="actions">
+      <button class="btn-primary" id="btnGen" onclick="generate()">
+        <span id="btnIcon">✦</span>
+        <span id="btnTxt">Générer le document</span>
+      </button>
+      <button class="btn-ghost" onclick="resetForm()">Réinitialiser</button>
+    </div>
+    <div class="progress-wrap" id="progressWrap" style="display:none">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="status-msg" id="statusMsg"></div>
+    </div>
+    <div class="status-msg error" id="errorMsg"></div>
+
+  </div><!-- /panelForm -->
+
+  <!-- ═══════════════════════════════ RÉSULTAT ════════════════════════════════ -->
+  <div id="panelResult" style="display:none">
+    <div class="result-header">
+      <div class="result-meta">
+        <strong id="resTitle">Document généré</strong>
+        <span id="resSubtitle"></span>
+      </div>
+      <div class="result-actions">
+        <button class="btn-ghost" onclick="copyResult()">📋 Copier</button>
+        <button class="btn-ghost" onclick="exportWord()">⬇ Word (.doc)</button>
+        <button class="btn-primary" onclick="exportMarkdown()">⬇ Markdown</button>
+      </div>
+    </div>
+    <div class="result-box" id="resultBox"></div>
+    <div class="actions" style="margin-top:1rem">
+      <button class="btn-ghost" onclick="showTab('form')">← Modifier</button>
+      <button class="btn-ghost" onclick="regenerate()">↺ Régénérer</button>
+    </div>
+  </div>
+
+</div><!-- /shell -->
+
+<script>
+/* ════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════ */
+let docType    = 'sfd';
+let detailLvl  = 'standard';
+let resultText = '';
+let lastData   = null;
+let apiKey     = localStorage.getItem('gemini_api_key') || '';
+
+/* ════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('fDate').valueAsDate = new Date();
+  if (apiKey) {
+    document.getElementById('apiKeyInput').value = apiKey;
+    document.getElementById('keyBanner').style.background = '#f0fdf4';
+    document.getElementById('keyBanner').style.borderColor = '#86efac';
+  }
+});
+
+/* ════════════════════════════════════════════
+   API KEY
+════════════════════════════════════════════ */
+function saveKey() {
+  const v = document.getElementById('apiKeyInput').value.trim();
+  if (!v) return;
+  apiKey = v;
+  localStorage.setItem('gemini_api_key', v);
+  const b = document.getElementById('keyBanner');
+  b.style.background = '#f0fdf4';
+  b.style.borderColor = '#86efac';
+  setStatus('✓ Clé enregistrée localement dans votre navigateur.');
+}
+
+/* ════════════════════════════════════════════
+   UI HELPERS
+════════════════════════════════════════════ */
+function tog(el) { el.classList.toggle('on'); }
+
+function setDocType(t) {
+  docType = t;
+  ['sfd','std','both'].forEach(k =>
+    document.getElementById('card'+k.toUpperCase()).classList.toggle('selected', k===t)
+  );
+}
+
+function setDetail(d) {
+  detailLvl = d;
+  ['essentiel','standard','detaille'].forEach(k => {
+    const map = {essentiel:'detEss', standard:'detStd', detaille:'detDet'};
+    document.getElementById(map[k]).classList.toggle('on', k===d);
+  });
+}
+
+function showTab(t) {
+  document.getElementById('panelForm').style.display   = t==='form'   ? 'block' : 'none';
+  document.getElementById('panelResult').style.display = t==='result' ? 'block' : 'none';
+  document.getElementById('tabForm').classList.toggle('active',   t==='form');
+  document.getElementById('tabResult').classList.toggle('active', t==='result');
+}
+
+function setStatus(msg, isErr=false) {
+  const el = document.getElementById(isErr ? 'errorMsg' : 'statusMsg');
+  if (!isErr) document.getElementById('errorMsg').textContent = '';
+  el.textContent = msg;
+}
+
+function getTags(id) {
+  return [...document.querySelectorAll(`#${id} .tag.on`)].map(t => t.textContent.trim());
+}
+
+/* ════════════════════════════════════════════
+   FORM DATA
+════════════════════════════════════════════ */
+function collectData() {
+  const customs = document.getElementById('fCustomMod').value
+    .split(',').map(s=>s.trim()).filter(Boolean);
+  return {
+    docType,
+    detailLvl,
+    name:    document.getElementById('fName').value.trim()    || 'Projet sans titre',
+    version: document.getElementById('fVersion').value.trim() || '1.0.0',
+    author:  document.getElementById('fAuthor').value.trim()  || 'Non spécifié',
+    client:  document.getElementById('fClient').value.trim()  || 'Non spécifié',
+    date:    document.getElementById('fDate').value           || new Date().toISOString().slice(0,10),
+    desc:    document.getElementById('fDesc').value.trim(),
+    scope:   document.getElementById('fScope').value.trim(),
+    users:   document.getElementById('fUsers').value.trim(),
+    modules: [...getTags('tagModules'), ...customs],
+    biz:     document.getElementById('fBiz').value.trim(),
+    front:   getTags('tagFront'),
+    back:    getTags('tagBack'),
+    db:      getTags('tagDB'),
+    infra:   getTags('tagInfra'),
+    integ:   document.getElementById('fInteg').value.trim(),
+    nfr:     getTags('tagNFR'),
+    extra:   document.getElementById('fExtra').value.trim(),
+  };
+}
+
+/* ════════════════════════════════════════════
+   PROMPT BUILDER
+════════════════════════════════════════════ */
+function buildPrompt(d) {
+  const typeLabel = {
+    sfd:  'Spécifications Fonctionnelles Détaillées (SFD)',
+    std:  'Spécifications Techniques Détaillées (STD)',
+    both: 'Spécifications Fonctionnelles et Techniques (SFD + STD)',
+  }[d.docType];
+
+  const detailInstr = {
+    essentiel: 'Document concis : inclure uniquement les sections essentielles (contexte, objectifs, périmètre, principaux cas d\'usage ou composants techniques).',
+    standard:  'Document complet et structuré avec tous les chapitres habituels.',
+    detaille:  'Document exhaustif : inclure des tableaux, des exemples, des matrices de traçabilité et des critères d\'acceptation détaillés.',
+  }[d.detailLvl];
+
+  return `Tu es un expert senior en rédaction de documents de spécifications logicielles.
+Génère un document de ${typeLabel} professionnel, structuré et rédigé en français.
+
+═══════ INFORMATIONS PROJET ═══════
+Nom          : ${d.name}
+Version      : ${d.version}
+Auteur       : ${d.author}
+Client       : ${d.client}
+Date cible   : ${d.date}
+
+═══════ CONTEXTE ═══════
+${d.desc || '(non renseigné)'}
+
+Périmètre    : ${d.scope  || 'Non spécifié'}
+Utilisateurs : ${d.users  || 'Non spécifié'}
+Modules      : ${d.modules.length ? d.modules.join(', ') : 'Non spécifié'}
+Contraintes  : ${d.biz    || 'Aucune'}
+
+═══════ STACK TECHNIQUE ═══════
+Frontend     : ${d.front.length  ? d.front.join(', ')  : 'Non spécifié'}
+Backend      : ${d.back.length   ? d.back.join(', ')   : 'Non spécifié'}
+Base données : ${d.db.length     ? d.db.join(', ')     : 'Non spécifié'}
+Infra / Cloud: ${d.infra.length  ? d.infra.join(', ')  : 'Non spécifié'}
+Intégrations : ${d.integ         || 'Aucune'}
+Exig. non-fn : ${d.nfr.length    ? d.nfr.join(', ')   : 'Aucune'}
+
+═══════ INFOS COMPLÉMENTAIRES ═══════
+${d.extra || 'Aucune'}
+
+═══════ INSTRUCTIONS DE GÉNÉRATION ═══════
+- ${detailInstr}
+- Structure le document avec une numérotation hiérarchique (1. / 1.1 / 1.1.1).
+- Commence par : page de titre, historique des révisions, table des matières.
+- Utilise du Markdown lisible (# ## ### pour les titres, tableaux si pertinent).
+- Sois précis, professionnel et adapté au contexte décrit.
+${d.docType !== 'std'  ? '- Pour la SFD : inclure acteurs/rôles, cas d\'usage principaux, règles de gestion, critères d\'acceptation.' : ''}
+${d.docType !== 'sfd'  ? '- Pour la STD : inclure architecture système, modèle de données (tables clés), endpoints API, sécurité, déploiement, monitoring.' : ''}
+- Ne génère que le document — sans commentaire introductif ni conclusion externe.`;
+}
+
+/* ════════════════════════════════════════════
+   GENERATE
+════════════════════════════════════════════ */
+async function generate() {
+  const d = collectData();
+  if (!d.desc) { setStatus('⚠ Veuillez décrire le projet avant de générer.', true); return; }
+  if (!apiKey)  { setStatus('⚠ Veuillez enregistrer votre clé API Gemini.', true); return; }
+
+  lastData = d;
+  const btn = document.getElementById('btnGen');
+  btn.disabled = true;
+  document.getElementById('btnIcon').innerHTML = '<span class="spinner"></span>';
+  document.getElementById('btnTxt').textContent = 'Génération en cours…';
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('errorMsg').textContent = '';
+
+  let pct = 0;
+  const timer = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 7, 88);
+    document.getElementById('progressFill').style.width = pct + '%';
+  }, 350);
+
+  setStatus('Appel à Gemini en cours…');
+
+  try {
+    const endpoint =
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: buildPrompt(d) }] }],
+        generationConfig: { temperature: 0.4, maxOutputTokens: 8192 },
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `Erreur HTTP ${resp.status}`);
+    }
+
+    const json = await resp.json();
+    resultText = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!resultText) throw new Error('Réponse vide de l\'API.');
+
+    clearInterval(timer);
+    document.getElementById('progressFill').style.width = '100%';
+
+    // Afficher résultat
+    const labels = { sfd:'SFD', std:'STD', both:'SFD + STD' };
+    document.getElementById('resTitle').textContent   = `${d.name} — ${labels[d.docType]}`;
+    document.getElementById('resSubtitle').textContent = `v${d.version} · Généré le ${new Date().toLocaleDateString('fr-FR')} · Gemini 1.5 Flash`;
+    document.getElementById('resultBox').textContent  = resultText;
+    document.getElementById('tabResult').style.display = 'inline-block';
+    document.getElementById('tabBadge').style.display  = 'inline-block';
+    showTab('result');
+    setStatus('');
+
+  } catch(e) {
+    clearInterval(timer);
+    setStatus(`❌ ${e.message}`, true);
+    document.getElementById('progressFill').style.width = '0%';
+  } finally {
+    btn.disabled = false;
+    document.getElementById('btnIcon').textContent = '✦';
+    document.getElementById('btnTxt').textContent  = 'Générer le document';
+    setTimeout(() => {
+      document.getElementById('progressWrap').style.display = 'none';
+      document.getElementById('progressFill').style.width   = '0%';
+    }, 1000);
+  }
+}
+
+function regenerate() { showTab('form'); setTimeout(generate, 100); }
+
+/* ════════════════════════════════════════════
+   EXPORT
+════════════════════════════════════════════ */
+function copyResult() {
+  navigator.clipboard.writeText(resultText).then(() => {
+    const b = event.target;
+    const orig = b.textContent;
+    b.textContent = '✓ Copié !';
+    setTimeout(() => b.textContent = orig, 2000);
+  });
+}
+
+function exportMarkdown() {
+  const name = (lastData?.name || 'specifications').replace(/\s+/g,'_');
+  const blob  = new Blob([resultText], { type: 'text/markdown' });
+  dl(blob, `${name}_${(lastData?.docType||'doc').toUpperCase()}_v${lastData?.version||'1.0'}.md`);
+}
+
+function exportWord() {
+  const lines = resultText.split('\n');
+  let html = `<html><head><meta charset="utf-8">
+<style>
+body{font-family:Arial,sans-serif;font-size:11pt;margin:2.5cm 2cm;color:#111;}
+h1{font-size:20pt;color:#1a3a5c;border-bottom:2px solid #2563eb;padding-bottom:6px;margin-top:2em;}
+h2{font-size:15pt;color:#1e40af;border-bottom:1px solid #bfdbfe;padding-bottom:3px;margin-top:1.5em;}
+h3{font-size:12pt;color:#1d4ed8;margin-top:1.2em;}
+h4{font-size:11pt;color:#374151;margin-top:1em;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:10pt;}
+th,td{border:1px solid #d1d5db;padding:6px 10px;}
+th{background:#dbeafe;font-weight:700;}
+p{line-height:1.65;margin:.4em 0;}
+li{line-height:1.65;}
+code{background:#f3f4f6;padding:1px 5px;font-size:10pt;font-family:Consolas,monospace;}
+</style></head><body>`;
+  let inUL = false, inOL = false;
+  const close = () => {
+    if (inUL) { html += '</ul>'; inUL = false; }
+    if (inOL) { html += '</ol>'; inOL = false; }
+  };
+  lines.forEach(l => {
+    if      (l.startsWith('#### ')) { close(); html += `<h4>${esc(l.slice(5))}</h4>`; }
+    else if (l.startsWith('### '))  { close(); html += `<h3>${esc(l.slice(4))}</h3>`; }
+    else if (l.startsWith('## '))   { close(); html += `<h2>${esc(l.slice(3))}</h2>`; }
+    else if (l.startsWith('# '))    { close(); html += `<h1>${esc(l.slice(2))}</h1>`; }
+    else if (/^[\-\*] /.test(l))    { if (!inUL){html+='<ul>';inUL=true;} html+=`<li>${esc(l.slice(2))}</li>`; }
+    else if (/^\d+\. /.test(l))     { if (!inOL){html+='<ol>';inOL=true;} html+=`<li>${esc(l.replace(/^\d+\. /,''))}</li>`; }
+    else if (l.trim().startsWith('|')) { close(); html += l + '<br>'; }
+    else if (l.trim())              { close(); html += `<p>${esc(l)}</p>`; }
+  });
+  close();
+  html += '</body></html>';
+  const name = (lastData?.name||'specifications').replace(/\s+/g,'_');
+  dl(new Blob([html],{type:'application/msword'}),
+     `${name}_${(lastData?.docType||'doc').toUpperCase()}_v${lastData?.version||'1.0'}.doc`);
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          .replace(/`([^`]+)`/g,'<code>$1</code>')
+          .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+          .replace(/\*([^*]+)\*/g,'<em>$1</em>');
+}
+
+function dl(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ════════════════════════════════════════════
+   RESET
+════════════════════════════════════════════ */
+function resetForm() {
+  document.querySelectorAll('#panelForm input[type=text], #panelForm textarea').forEach(e => e.value='');
+  document.getElementById('fVersion').value = '1.0.0';
+  document.getElementById('fDate').valueAsDate = new Date();
+  document.querySelectorAll('.tag.on').forEach(t => t.classList.remove('on'));
+  setDocType('sfd');
+  setDetail('standard');
+  document.getElementById('errorMsg').textContent = '';
+}
+</script>
+</body>
+</html>
