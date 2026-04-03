@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Générateur SFT — Eficio</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f7f6f3; --surface: #ffffff; --border: #e2e0da; --border2: #c8c5bc;
+      --text: #1a1917; --muted: #6b6860; --accent: #2563eb; --accent-bg: #eff4ff;
+      --yellow: #fef9c3; --yellow-border: #fde047; --yellow-text: #713f12;
+      --success: #16a34a; --success-bg: #f0fdf4;
+      --radius: 10px; --radius-lg: 14px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+    .shell { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    .app-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; gap: 1rem; }
+    .app-header h1 { font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
+    .app-header p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .api-badge { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 20px; font-size: 12px; font-weight: 500; color: var(--success); background: var(--success-bg); white-space: nowrap; flex-shrink: 0; }
+    .api-badge::before { content: '●'; font-size: 8px; }
+
+    .key-banner { background: var(--accent-bg); border: 1px solid #bfdbfe; border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .key-banner-text { flex: 1; min-width: 180px; }
+    .key-banner-text strong { display: block; font-size: 13px; color: var(--accent); }
+    .key-banner-text span { font-size: 12px; color: var(--muted); }
+    .key-banner-text a { font-size: 12px; color: var(--accent); text-decoration: underline; }
+    .key-input-wrap { display: flex; gap: 8px; flex: 2; min-width: 240px; }
+    .key-input-wrap input { flex: 1; padding: 7px 10px; border: 1px solid var(--border2); border-radius: 8px; font-size: 13px; font-family: monospace; background: white; }
+    .key-input-wrap input:focus { outline: none; border-color: var(--accent); }
+    .btn-save-key { padding: 7px 14px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .btn-save-key:hover { background: #1d4ed8; }
+
+    .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+    .tab { padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; background: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .tab.active { color: var(--text); border-bottom-color: var(--text); }
+    .tab:hover:not(.active) { color: var(--text); }
+
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1rem; overflow: hidden; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem .75rem; cursor: pointer; user-select: none; }
+    .section-header:hover { background: var(--bg); }
+    .section-title-row { display: flex; align-items: center; gap: 10px; }
+    .section-num { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-bg); color: var(--accent); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .section-title { font-size: 13px; font-weight: 600; }
+    .section-subtitle { font-size: 12px; color: var(--muted); margin-top: 1px; }
+    .section-toggle { font-size: 14px; color: var(--muted); transition: transform .2s; }
+    .section-toggle.open { transform: rotate(180deg); }
+    .section-body { padding: 0 1.25rem 1.25rem; border-top: 1px solid var(--border); }
+
+    .field { margin-top: .85rem; }
+    .field label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; margin-bottom: 5px; flex-wrap: wrap; }
+    .hint-tag { font-size: 10px; font-weight: 500; padding: 1px 6px; border-radius: 10px; background: var(--yellow); color: var(--yellow-text); border: 1px solid var(--yellow-border); }
+    .field input, .field textarea, .field select { width: 100%; padding: 8px 11px; border: 1px solid var(--border2); border-radius: 8px; font-size: 13px; font-family: inherit; background: var(--surface); color: var(--text); }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.55; }
+    .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
+    .field-yellow input, .field-yellow textarea, .field-yellow select { background: var(--yellow); border-color: var(--yellow-border); }
+    .field-yellow input:focus, .field-yellow textarea:focus { border-color: #ca8a04; box-shadow: 0 0 0 3px rgba(202,138,4,.1); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+    .opt-block { border: 1px solid var(--border); border-radius: 8px; margin-top: .85rem; overflow: hidden; }
+    .opt-block-header { display: flex; align-items: center; gap: 10px; padding: .65rem 1rem; background: var(--bg); }
+    .opt-block-header label { font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; flex: 1; }
+    .opt-block-body { padding: .75rem 1rem 1rem; border-top: 1px solid var(--border); }
+    .opt-block-body.hidden { display: none; }
+    input[type=checkbox].opt-check { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+
+    .table-editor { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+    .table-editor th { background: #f1f5f9; padding: 6px 8px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+    .table-editor td { border: 1px solid var(--border); padding: 0; }
+    .table-editor td input { width: 100%; border: none; padding: 6px 8px; font-size: 12px; background: transparent; font-family: inherit; }
+    .table-editor td input:focus { outline: none; background: var(--accent-bg); }
+    .table-editor tr:nth-child(even) td { background: #fafaf9; }
+    .btn-add-row { margin-top: 6px; font-size: 12px; padding: 4px 10px; border: 1px dashed var(--border2); border-radius: 6px; background: transparent; cursor: pointer; color: var(--muted); }
+    .btn-add-row:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-del-row { border: none; background: none; cursor: pointer; color: #dc2626; font-size: 14px; padding: 0 4px; }
+
+    .actions { display: flex; gap: 10px; margin-top: 1.5rem; flex-wrap: wrap; align-items: center; }
+    .btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px; background: var(--text); color: var(--bg); border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-primary:hover { opacity: .85; }
+    .btn-primary:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+    .btn-ghost:hover { border-color: var(--border2); color: var(--text); background: var(--surface); }
+
+    .progress-wrap { margin-top: 10px; }
+    .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width .3s ease; }
+    .status-msg { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 18px; }
+    .status-msg.error { color: #dc2626; }
+
+    .result-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .result-meta strong { font-size: 15px; font-weight: 600; }
+    .result-meta span { font-size: 12px; color: var(--muted); display: block; margin-top: 2px; }
+    .result-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .result-box { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; max-height: 560px; overflow-y: auto; font-size: 13px; line-height: 1.75; white-space: pre-wrap; font-family: inherit; }
+
+    .spinner { width: 14px; height: 14px; border: 2px solid transparent; border-top-color: currentColor; border-radius: 50%; animation: spin .55s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 1.25rem; font-size: 12px; color: var(--muted); align-items: center; }
+    .ld { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 4px; vertical-align: middle; }
+
+    .check-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 6px; background: var(--yellow); }
+    .check-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+    .check-row span { font-size: 13px; flex: 1; }
+    .check-row.off { background: var(--surface); opacity: .6; }
+
+    .toggle-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .toggle-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border: 1px solid var(--border2); border-radius: 20px; font-size: 13px; cursor: pointer; background: var(--surface); color: var(--muted); transition: all .15s; user-select: none; }
+    .toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .toggle-btn.on { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 500; }
+
+    .subdomain-row { display: flex; align-items: center; margin-top: 8px; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; background: var(--surface); opacity: .5; pointer-events: none; }
+    .subdomain-row.active { opacity: 1; pointer-events: auto; border-color: var(--accent); background: var(--accent-bg); }
+    .subdomain-pre, .subdomain-suf { padding: 8px 10px; font-size: 13px; background: var(--bg); color: var(--muted); white-space: nowrap; }
+    .subdomain-pre { border-right: 1px solid var(--border2); }
+    .subdomain-suf { border-left: 1px solid var(--border2); }
+    .subdomain-row input { flex: 1; border: none; padding: 8px 10px; font-size: 13px; background: transparent; font-family: inherit; min-width: 80px; color: var(--text); }
+    .subdomain-row input:focus { outline: none; }
+
+    @media (max-width: 600px) { .grid2, .grid3 { grid-template-columns: 1fr; } .app-header { flex-direction: column; } }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="app-header">
+    <div>
+      <h1>Spécifications Fonctionnelles et Techniques</h1>
+      <p>Basé sur le template Eficio — Cloudimanage / iManage</p>
+    </div>
+    <div class="api-badge">Gemini — gratuit</div>
+  </div>
+
+  <div class="key-banner" id="keyBanner">
+    <div style="font-size:18px">🔑</div>
+    <div class="key-banner-text">
+      <strong>Clé API Google Gemini requise</strong>
+      <span>Gratuite · 1 500 requêtes/jour · <a href="https://aistudio.google.com/app/apikey" target="_blank">Obtenir ma clé →</a></span>
+    </div>
+    <div class="key-input-wrap">
+      <input type="password" id="apiKeyInput" placeholder="AIza..." />
+      <button class="btn-save-key" onclick="saveKey()">Enregistrer</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabForm" onclick="showTab('form')">Formulaire</button>
+    <button class="tab" id="tabResult" onclick="showTab('result')" style="display:none">Résultat</button>
+  </div>
+
+  <div id="panelForm">
+    <div class="legend">
+      <span><span class="ld" style="background:var(--yellow);border:1px solid var(--yellow-border)"></span>Champ à compléter (surligné dans le template original)</span>
+      <span><span class="ld" style="background:var(--border);border:1px solid var(--border2)"></span>Section optionnelle — décochez pour l'exclure du document</span>
+    </div>
+
+    <!-- 0. En-tête -->
+    <div class="section" id="s0">
+      <div class="section-header" onclick="toggleSec('s0')">
+        <div class="section-title-row">
+          <div class="section-num">0</div>
+          <div><div class="section-title">En-tête du document</div><div class="section-subtitle">Page de titre · historique des révisions · contacts</div></div>
+        </div>
+        <span class="section-toggle open" id="tog-s0">▼</span>
+      </div>
+      <div class="section-body" id="body-s0">
+        <div class="grid3">
+          <div class="field field-yellow"><label>Nom du cabinet <span class="hint-tag">à compléter</span></label><input id="f_cabinet" placeholder="Cabinet Dupont &amp; Associés" /></div>
+          <div class="field field-yellow"><label>Taille (nb personnes) <span class="hint-tag">à compléter</span></label><input id="f_taille" placeholder="45" /></div>
+          <div class="field field-yellow"><label>Activité principale <span class="hint-tag">à compléter</span></label><input id="f_activite" placeholder="droit des affaires" /></div>
+        </div>
+        <div class="grid3">
+          <div class="field"><label>Version</label><input id="f_version" value="1.0" /></div>
+          <div class="field"><label>Date</label><input id="f_date" type="date" /></div>
+          <div class="field"><label>Créé par</label><input id="f_auteur" placeholder="Prénom Nom" /></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Contact Eficio</label><input id="f_contact_eficio" placeholder="Nom, email" /></div>
+          <div class="field field-yellow"><label>Contact Client <span class="hint-tag">à compléter</span></label><input id="f_contact_client" placeholder="Nom, email, téléphone" /></div>
+        </div>
+        <div class="field field-yellow"><label>Périmètre du projet <span class="hint-tag">à compléter</span></label><textarea id="f_perimetre" rows="2" placeholder="Décrire le périmètre global du projet..."></textarea></div>
+        <div class="field">
+          <label>Historique des révisions</label>
+          <table class="table-editor" id="tbl_rev">
+            <thead><tr><th>Date</th><th>Modification</th><th>Version</th><th>Créé par</th><th style="width:28px"></th></tr></thead>
+            <tbody><tr>
+              <td><input type="date" /></td><td><input placeholder="Création initiale" /></td>
+              <td><input placeholder="1.0" /></td><td><input placeholder="Auteur" /></td>
+              <td><button class="btn-del-row" onclick="delRow(this)">×</button></td>
+            </tr></tbody>
+          </table>
+          <button class="btn-add-row" onclick="addRowRev()">+ Ligne</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. Présentation -->
+    <div class="section" id="s1">
+      <div class="section-header" onclick="toggleSec('s1')">
+        <div class="section-title-row"><div class="section-num">1</div><div><div class="section-title">1. Présentation du projet de GED iManage</div><div class="section-subtitle">Contexte, objectifs, problématiques</div></div></div>
+        <span class="section-toggle open" id="tog-s1">▼</span>
+      </div>
+      <div class="section-body" id="body-s1">
+        <p style="font-size:12px;color:var(--muted);margin:.5rem 0">Le texte standard du template est conservé. Les données du cabinet (nom, taille, activité) sont reprises de l'en-tête.</p>
+        <div class="field field-yellow"><label>Compléments spécifiques au projet <span class="hint-tag">à compléter</span></label><textarea id="f_contexte_complement" rows="3" placeholder="Informations complémentaires sur le contexte, les enjeux spécifiques..."></textarea></div>
+      </div>
+    </div>
+
+    <!-- 2. Workspaces -->
+    <div class="section" id="s2">
+      <div class="section-header" onclick="toggleSec('s2')">
+        <div class="section-title-row"><div class="section-num">2</div><div><div class="section-title">2. Workspace / Espaces de travail</div><div class="section-subtitle">Types d'espaces implémentés (surlignés dans le template)</div></div></div>
+        <span class="section-toggle open" id="tog-s2">▼</span>
+      </div>
+      <div class="section-body" id="body-s2">
+        <p style="font-size:12px;color:var(--muted);margin:.5rem 0 .75rem">Cochez les espaces de travail à inclure dans le document. Les lignes décochées seront exclues.</p>
+        <label class="check-row" id="cr_ws_client">
+          <input type="checkbox" id="chk_ws_client" checked onchange="toggleCheckRow('cr_ws_client',this.checked)" />
+          <span>Espace de travail <strong>« Client »</strong> — pour enregistrer les documents généraux du client</span>
+        </label>
+        <label class="check-row" id="cr_ws_dossier">
+          <input type="checkbox" id="chk_ws_dossier" checked onchange="toggleCheckRow('cr_ws_dossier',this.checked)" />
+          <span>Espace de travail <strong>« Dossier »</strong> — 1 dossier par Affaire</span>
+        </label>
+        <label class="check-row" id="cr_ws_admin">
+          <input type="checkbox" id="chk_ws_admin" checked onchange="toggleCheckRow('cr_ws_admin',this.checked)" />
+          <span>Espace de travail <strong>« Administratif »</strong> — pour la gestion du cabinet / du Département</span>
+        </label>
+        <label class="check-row" id="cr_ws_perso">
+          <input type="checkbox" id="chk_ws_perso" checked onchange="toggleCheckRow('cr_ws_perso',this.checked)" />
+          <span>Espace de travail <strong>« Personnel »</strong> — pour les documents de travail personnels</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 3. Métadonnées -->
+    <div class="section" id="s3">
+      <div class="section-header" onclick="toggleSec('s3')">
+        <div class="section-title-row"><div class="section-num">3</div><div><div class="section-title">3. Métadonnées choisies pour l'implémentation</div><div class="section-subtitle">Mapping Custom1–Custom30 → libellés projet</div></div></div>
+        <span class="section-toggle open" id="tog-s3">▼</span>
+      </div>
+      <div class="section-body" id="body-s3">
+        <p style="font-size:12px;color:var(--muted);margin:.5rem 0">Renseignez le libellé métier pour chaque champ Custom utilisé. Laissez vide les non utilisés.</p>
+        <table class="table-editor" id="tbl_meta">
+          <thead><tr><th style="width:32px"></th><th style="width:130px">Champ Cloudimanage</th><th>Libellé pour le projet</th></tr></thead>
+          <tbody id="meta_body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. Sécurité -->
+    <div class="section" id="s4">
+      <div class="section-header" onclick="toggleSec('s4')">
+        <div class="section-title-row"><div class="section-num">4</div><div><div class="section-title">4. Principes de sécurité</div><div class="section-subtitle">Administrateurs · règles spécifiques · authentification</div></div></div>
+        <span class="section-toggle open" id="tog-s4">▼</span>
+      </div>
+      <div class="section-body" id="body-s4">
+        <div class="field field-yellow"><label>Administrateurs iManage nommés <span class="hint-tag">à compléter</span></label><textarea id="f_admins" rows="3" placeholder="Prénom Nom — poste&#10;Prénom Nom — poste"></textarea></div>
+        <div class="field field-yellow"><label>Règles de sécurité spécifiques au projet <span class="hint-tag">à compléter</span></label><textarea id="f_securite_regles" rows="4" placeholder="Décrire les règles de sécurité définies dans le cadre du projet..."></textarea></div>
+        <div class="field field-yellow">
+          <label>Mode d'authentification <span class="hint-tag">surlignée</span></label>
+          <div class="toggle-group" id="auth_group">
+            <div class="toggle-btn" id="auth_sso" onclick="toggleAuth('sso')">SSO Entra ID</div>
+            <div class="toggle-btn" id="auth_pwd" onclick="toggleAuth('pwd')">Authentification Login / Mot de passe</div>
+            <div class="toggle-btn" id="auth_saml" onclick="toggleAuth('saml')">SAML</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4b. Options de configuration -->
+    <div class="section" id="s4b">
+      <div class="section-header" onclick="toggleSec('s4b')">
+        <div class="section-title-row"><div class="section-num" style="background:#f0fdf4;color:#16a34a">4b</div><div><div class="section-title">Options de configuration</div><div class="section-subtitle">Fonctionnalités avancées Cloudimanage à activer</div></div></div>
+        <span class="section-toggle open" id="tog-s4b">▼</span>
+      </div>
+      <div class="section-body" id="body-s4b">
+        <p style="font-size:12px;color:var(--muted);margin:.5rem 0 .75rem">Activez les options déployées dans le cadre du projet. Seules les options activées apparaîtront dans le document.</p>
+        <div class="toggle-group" id="config_group">
+          <div class="toggle-btn" id="cfg_cmek" onclick="toggleCfg('cmek')">CMEK (Azure Key Vault)</div>
+          <div class="toggle-btn" id="cfg_plink" onclick="toggleCfg('plink')">Private Links (Azure Premium)</div>
+          <div class="toggle-btn" id="cfg_subdomain" onclick="toggleCfg('subdomain')">Sous-domaine</div>
+        </div>
+        <div class="subdomain-row" id="subdomain_row">
+          <span class="subdomain-pre">https://</span>
+          <input type="text" id="f_subdomain" placeholder="nomducabinet" />
+          <span class="subdomain-suf">.cloudimanage.com</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Plans de classement -->
+    <div class="section" id="s5">
+      <div class="section-header" onclick="toggleSec('s5')">
+        <div class="section-title-row"><div class="section-num">5</div><div><div class="section-title">5. Plans de classement implémentés</div><div class="section-subtitle">Décochez les plans non utilisés pour les exclure du document</div></div></div>
+        <span class="section-toggle open" id="tog-s5">▼</span>
+      </div>
+      <div class="section-body" id="body-s5">
+
+        <div class="opt-block">
+          <div class="opt-block-header">
+            <input type="checkbox" class="opt-check" id="chk_client" checked onchange="toggleOpt('ob_client_body',this.checked)" />
+            <label for="chk_client">📁 Plan CLIENT <span class="hint-tag">surlignée</span></label>
+          </div>
+          <div class="opt-block-body" id="ob_client_body">
+            <div class="field field-yellow"><label>Structure du plan CLIENT <span class="hint-tag">à compléter</span></label><textarea id="f_plan_client" rows="5" placeholder="ex :&#10;- 01 - Correspondances (obligatoire)&#10;- 02 - Contrats (obligatoire)&#10;- 03 - Documents administratifs (optionnel)"></textarea></div>
+          </div>
+        </div>
+
+        <div class="opt-block">
+          <div class="opt-block-header">
+            <input type="checkbox" class="opt-check" id="chk_dossier" checked onchange="toggleOpt('ob_dossier_body',this.checked)" />
+            <label for="chk_dossier">📁 Plan DOSSIER <span class="hint-tag">surlignée</span></label>
+          </div>
+          <div class="opt-block-body" id="ob_dossier_body">
+            <div class="field field-yellow"><label>Structure du plan DOSSIER <span class="hint-tag">à compléter</span></label><textarea id="f_plan_dossier" rows="5" placeholder="ex :&#10;- 01 - Pièces (obligatoire)&#10;- 02 - Correspondances (obligatoire)&#10;- 03 - Notes (optionnel)&#10;- 04 - Facturation (libre)"></textarea></div>
+          </div>
+        </div>
+
+        <div class="opt-block">
+          <div class="opt-block-header">
+            <input type="checkbox" class="opt-check" id="chk_admin" checked onchange="toggleOpt('ob_admin_body',this.checked)" />
+            <label for="chk_admin">📁 Plan ADMINISTRATIF <span class="hint-tag">surlignée</span></label>
+          </div>
+          <div class="opt-block-body" id="ob_admin_body">
+            <div class="field field-yellow"><label>Structure du plan ADMINISTRATIF <span class="hint-tag">à compléter</span></label><textarea id="f_plan_admin" rows="5" placeholder="ex :&#10;- 01 - RH&#10;- 02 - Comptabilité&#10;- 03 - Juridique interne"></textarea></div>
+          </div>
+        </div>
+
+        <div class="opt-block">
+          <div class="opt-block-header">
+            <input type="checkbox" class="opt-check" id="chk_perso" checked onchange="toggleOpt('ob_perso_body',this.checked)" />
+            <label for="chk_perso">📁 Plan ESPACE PERSONNEL <span class="hint-tag">surlignée</span></label>
+          </div>
+          <div class="opt-block-body" id="ob_perso_body">
+            <div class="field field-yellow"><label>Structure du plan ESPACE PERSONNEL <span class="hint-tag">à compléter</span></label><textarea id="f_plan_perso" rows="5" placeholder="ex :&#10;- 01 - Mes documents&#10;- 02 - Mes brouillons&#10;- 03 - Mes modèles"></textarea></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 6. Utilisateurs et groupes -->
+    <div class="section" id="s6">
+      <div class="section-header" onclick="toggleSec('s6')">
+        <div class="section-title-row"><div class="section-num">6</div><div><div class="section-title">6. Utilisateurs et groupes d'utilisateurs iManage</div></div></div>
+        <span class="section-toggle open" id="tog-s6">▼</span>
+      </div>
+      <div class="section-body" id="body-s6">
+        <div class="field field-yellow"><label>Description des groupes et rôles <span class="hint-tag">à compléter</span></label><textarea id="f_groupes" rows="4" placeholder="ex :&#10;- Groupe « Associés » : rôle Default + accès complet&#10;- Groupe « Collaborateurs » : rôle Default&#10;- Groupe « Stagiaires » : lecture seule"></textarea></div>
+        <div class="field">
+          <label>Tableau des groupes d'utilisateurs</label>
+          <table class="table-editor" id="tbl_groupes">
+            <thead><tr><th>Nom du groupe</th><th>Rôle iManage</th><th>Droits d'accès</th><th style="width:28px"></th></tr></thead>
+            <tbody><tr>
+              <td><input placeholder="ex : Associés" /></td><td><input placeholder="Default" /></td>
+              <td><input placeholder="Lecture/Écriture" /></td>
+              <td><button class="btn-del-row" onclick="delRow(this)">×</button></td>
+            </tr></tbody>
+          </table>
+          <button class="btn-add-row" onclick="addRow('tbl_groupes',['','Default',''])">+ Groupe</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. Création des dossiers -->
+    <div class="section" id="s7">
+      <div class="section-header" onclick="toggleSec('s7')">
+        <div class="section-title-row"><div class="section-num">7</div><div><div class="section-title">7. Création des nouveaux dossiers</div></div></div>
+        <span class="section-toggle open" id="tog-s7">▼</span>
+      </div>
+      <div class="section-body" id="body-s7">
+        <div class="field field-yellow">
+          <label>Mode de création des dossiers <span class="hint-tag">surlignée</span></label>
+          <div class="toggle-group">
+            <div class="toggle-btn" id="cm_manuel" onclick="toggleCreation('manuel')">Manuelle par les utilisateurs</div>
+            <div class="toggle-btn" id="cm_efxtool" onclick="toggleCreation('efxtool')">Via le module EfXtool</div>
+            <div class="toggle-btn" id="cm_mixte" onclick="toggleCreation('mixte')">Mixte (manuel + EfXtool)</div>
+          </div>
+        </div>
+        <div class="field field-yellow" id="f_efxtool_wrap" style="display:none">
+          <label>Logiciel de facturation synchronisé <span class="hint-tag">à compléter</span></label>
+          <input id="f_logiciel_fact" placeholder="ex : Clio, Silec, Isuite, Oscar..." />
+        </div>
+        <div class="field field-yellow"><label>Règles de création et nommage des dossiers <span class="hint-tag">à compléter</span></label><textarea id="f_regles_dossiers" rows="4" placeholder="Décrire les règles de nommage, de création et d'organisation des dossiers..."></textarea></div>
+      </div>
+    </div>
+
+    <!-- 8. Reprise de l'existant -->
+    <div class="section" id="s8">
+      <div class="section-header" id="hdr-s8" onclick="toggleSec('s8')" style="opacity:1">
+        <div class="section-title-row">
+          <input type="checkbox" id="chk_s8" checked onclick="event.stopPropagation();toggleSection8(this.checked)" style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0" />
+          <div class="section-num">8</div>
+          <div><div class="section-title">8. Reprise de l'existant</div><div class="section-subtitle">Périmètre et méthodologie d'import</div></div>
+        </div>
+        <span class="section-toggle open" id="tog-s8">▼</span>
+      </div>
+      <div class="section-body" id="body-s8">
+        <div class="field field-yellow"><label>Source des données à importer <span class="hint-tag">à compléter</span></label><input id="f_source_import" placeholder="ex : serveur de fichiers Windows, SharePoint, réseau local..." /></div>
+        <div class="field">
+          <label>Tableau du périmètre d'import</label>
+          <table class="table-editor" id="tbl_import">
+            <thead><tr><th>Espaces initiaux</th><th>Correspondance iManage</th><th>Nb fichiers</th><th>Taille (Go)</th><th>Type d'import</th><th style="width:28px"></th></tr></thead>
+            <tbody><tr>
+              <td><input placeholder="Dossier source" /></td><td><input placeholder="Workspace iManage" /></td>
+              <td><input placeholder="~5 000" /></td><td><input placeholder="10" /></td>
+              <td><input placeholder="Automatique via EfXtool" /></td>
+              <td><button class="btn-del-row" onclick="delRow(this)">×</button></td>
+            </tr></tbody>
+          </table>
+          <button class="btn-add-row" onclick="addRow('tbl_import',['','','','','Automatique via EfXtool'])">+ Ligne</button>
+        </div>
+        <div class="field field-yellow"><label>Date de mise en lecture seule du serveur <span class="hint-tag">surlignée</span></label><input id="f_date_ro" placeholder="ex : À partir du 01/06/2024, le serveur de fichier sera mis en lecture seule" /></div>
+      </div>
+    </div>
+
+    <!-- 9. Installation -->
+    <div class="section" id="s9">
+      <div class="section-header" onclick="toggleSec('s9')">
+        <div class="section-title-row"><div class="section-num">9</div><div><div class="section-title">9. Installation des postes utilisateurs</div></div></div>
+        <span class="section-toggle open" id="tog-s9">▼</span>
+      </div>
+      <div class="section-body" id="body-s9">
+        <div class="field field-yellow"><label>Modalités d'installation <span class="hint-tag">à compléter</span></label><textarea id="f_installation" rows="4" placeholder="ex : L'installation est réalisée par le service IT interne via un script SCCM. Elle concerne 45 postes Windows 10/11."></textarea></div>
+      </div>
+    </div>
+
+    <!-- 10. Besoins spécifiques -->
+    <div class="section" id="s10">
+      <div class="section-header" onclick="toggleSec('s10')">
+        <div class="section-title-row"><div class="section-num">10</div><div><div class="section-title">10. iManage en réponse aux besoins spécifiques du client</div></div></div>
+        <span class="section-toggle open" id="tog-s10">▼</span>
+      </div>
+      <div class="section-body" id="body-s10">
+        <div class="field field-yellow"><label>Besoins spécifiques et réponses iManage <span class="hint-tag">à compléter</span></label><textarea id="f_besoins" rows="5" placeholder="ex :&#10;- Besoin : Accès mobile → Solution : application iManage mobile&#10;- Besoin : Partage tiers → Solution : iManage Share&#10;- Besoin : Recherche plein texte → Solution : moteur iManage intégré"></textarea></div>
+        <div class="field">
+          <label>Tableau des besoins spécifiques</label>
+          <table class="table-editor" id="tbl_besoins">
+            <thead><tr><th>Besoin client</th><th>Solution iManage</th><th>Commentaire</th><th style="width:28px"></th></tr></thead>
+            <tbody><tr>
+              <td><input placeholder="Besoin identifié" /></td><td><input placeholder="Fonctionnalité iManage" /></td>
+              <td><input placeholder="Précisions" /></td>
+              <td><button class="btn-del-row" onclick="delRow(this)">×</button></td>
+            </tr></tbody>
+          </table>
+          <button class="btn-add-row" onclick="addRow('tbl_besoins',['','',''])">+ Besoin</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-primary" id="btnGen" onclick="generate()">
+        <span id="btnIcon">✦</span><span id="btnTxt">Générer le document SFT</span>
+      </button>
+      <button class="btn-ghost" onclick="resetForm()">Réinitialiser</button>
+    </div>
+    <div class="progress-wrap" id="progressWrap" style="display:none">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="status-msg" id="statusMsg"></div>
+    </div>
+    <div class="status-msg error" id="errorMsg"></div>
+  </div>
+
+  <!-- RÉSULTAT -->
+  <div id="panelResult" style="display:none">
+    <div class="result-header">
+      <div class="result-meta"><strong id="resTitle">Document SFT</strong><span id="resSubtitle"></span></div>
+      <div class="result-actions">
+        <button class="btn-ghost" onclick="copyResult()">📋 Copier</button>
+        <button class="btn-ghost" onclick="exportWord()">⬇ Word (.doc)</button>
+        <button class="btn-primary" onclick="exportMarkdown()">⬇ Markdown</button>
+      </div>
+    </div>
+    <div class="result-box" id="resultBox"></div>
+    <div class="actions" style="margin-top:1rem">
+      <button class="btn-ghost" onclick="showTab('form')">← Modifier</button>
+      <button class="btn-ghost" onclick="regenerate()">↺ Régénérer</button>
+    </div>
+  </div>
+
+</div>
+<script>
+let resultText = '';
+let apiKey = localStorage.getItem('gemini_api_key') || '';
+
+const META_FIELDS = ['Custom1','Custom2','Custom3','Custom4','Custom5','Custom6','Custom7',
+  'Custom8','Custom9','Custom10','Custom11','Custom12','Custom17','Custom18','Custom19',
+  'Custom20','Custom23','Custom24','Custom25','Custom26','Custom27','Custom28','Custom29','Custom30'];
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('f_date').valueAsDate = new Date();
+  if (apiKey) { document.getElementById('apiKeyInput').value = apiKey; applyKeyStyle(); }
+  const tbody = document.getElementById('meta_body');
+  META_FIELDS.forEach(f => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="text-align:center;padding:4px"><input type="checkbox" checked style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer" /></td><td style="padding:6px 8px;font-weight:500;color:var(--muted)">${f}</td><td><input type="text" placeholder="Libellé métier..." style="background:var(--yellow);border:none;padding:6px 8px;width:100%;font-size:12px;font-family:inherit;" /></td>`;
+    tbody.appendChild(tr);
+  });
+});
+
+function toggleSec(id) {
+  const body = document.getElementById('body-'+id);
+  const tog = document.getElementById('tog-'+id);
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  tog.classList.toggle('open', !open);
+}
+
+function toggleOpt(bodyId, checked) {
+  document.getElementById(bodyId).classList.toggle('hidden', !checked);
+}
+
+function toggleSection8(checked) {
+  const section = document.getElementById('s8');
+  section.style.opacity = checked ? '1' : '0.45';
+  section.style.pointerEvents = checked ? '' : 'none';
+  document.getElementById('chk_s8').style.pointerEvents = 'auto';
+}
+
+function toggleCheckRow(rowId, checked) {
+  document.getElementById(rowId).classList.toggle('off', !checked);
+}
+
+function toggleAuth(key) {
+  ['sso','pwd','saml'].forEach(k => {
+    document.getElementById('auth_'+k).classList.toggle('on', k===key);
+  });
+}
+
+function getActiveAuth() {
+  if (document.getElementById('auth_sso').classList.contains('on')) return 'SSO Entra ID';
+  if (document.getElementById('auth_pwd').classList.contains('on')) return 'Authentification Login / Mot de passe';
+  if (document.getElementById('auth_saml').classList.contains('on')) return 'SAML';
+  return '[à compléter]';
+}
+
+function toggleCfg(key) {
+  document.getElementById('cfg_'+key).classList.toggle('on');
+  if (key === 'subdomain') {
+    const on = document.getElementById('cfg_subdomain').classList.contains('on');
+    document.getElementById('subdomain_row').classList.toggle('active', on);
+  }
+}
+
+function toggleCreation(key) {
+  ['manuel','efxtool','mixte'].forEach(k => {
+    document.getElementById('cm_'+k).classList.toggle('on', k===key);
+  });
+  const showEfxtool = (key === 'efxtool' || key === 'mixte');
+  document.getElementById('f_efxtool_wrap').style.display = showEfxtool ? 'block' : 'none';
+}
+
+function getCreationMode() {
+  if (document.getElementById('cm_manuel').classList.contains('on')) return 'manuel';
+  if (document.getElementById('cm_efxtool').classList.contains('on')) return 'efxtool';
+  if (document.getElementById('cm_mixte').classList.contains('on')) return 'mixte';
+  return '';
+}
+
+function showTab(t) {
+  document.getElementById('panelForm').style.display = t==='form' ? 'block' : 'none';
+  document.getElementById('panelResult').style.display = t==='result' ? 'block' : 'none';
+  document.getElementById('tabForm').classList.toggle('active', t==='form');
+  document.getElementById('tabResult').classList.toggle('active', t==='result');
+}
+
+function applyKeyStyle() {
+  const b = document.getElementById('keyBanner');
+  b.style.background = '#f0fdf4'; b.style.borderColor = '#86efac';
+}
+
+function saveKey() {
+  const v = document.getElementById('apiKeyInput').value.trim();
+  if (!v) return;
+  apiKey = v; localStorage.setItem('gemini_api_key', v); applyKeyStyle();
+  document.getElementById('errorMsg').textContent = '✓ Clé enregistrée.';
+  setTimeout(() => document.getElementById('errorMsg').textContent = '', 2000);
+}
+
+function addRow(tid, ph) {
+  const tbody = document.querySelector('#'+tid+' tbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = ph.map(p=>`<td><input type="text" placeholder="${p}" /></td>`).join('') +
+    `<td><button class="btn-del-row" onclick="delRow(this)">×</button></td>`;
+  tbody.appendChild(tr);
+}
+function delRow(btn) { btn.closest('tr').remove(); }
+
+function addRowRev() {
+  const tbody = document.querySelector('#tbl_rev tbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = '<td><input type="date" /></td>' +
+    '<td><input type="text" placeholder="Description de la modification" /></td>' +
+    '<td><input type="text" placeholder="1.0" /></td>' +
+    '<td><input type="text" placeholder="Auteur" /></td>' +
+    '<td><button class="btn-del-row" onclick="delRow(this)">×</button></td>';
+  tbody.appendChild(tr);
+}
+
+function getRevisions() {
+  const rows = [];
+  document.querySelectorAll('#tbl_rev tbody tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    const dateRaw = inputs[0] ? inputs[0].value : '';
+    const dateFormatted = dateRaw ? new Date(dateRaw).toLocaleDateString('fr-FR') : '';
+    const cells = [dateFormatted, inputs[1]?.value.trim()||'', inputs[2]?.value.trim()||'', inputs[3]?.value.trim()||''];
+    if (cells.some(c => c)) rows.push(cells);
+  });
+  return rows;
+}
+
+function getTbl(tid) {
+  const rows = [];
+  document.querySelectorAll('#'+tid+' tbody tr').forEach(tr => {
+    const cells = [...tr.querySelectorAll('input')].map(i=>i.value.trim());
+    if (cells.some(c=>c)) rows.push(cells);
+  });
+  return rows;
+}
+
+function v(id) { const e = document.getElementById(id); return e ? e.value.trim() : ''; }
+function chk(id) { const e = document.getElementById(id); return e ? e.checked : false; }
+
+function tblMd(rows, headers) {
+  if (!rows.length) return '*(non renseigné)*';
+  return `| ${headers.join(' | ')} |\n| ${headers.map(()=>'---').join(' | ')} |\n` +
+    rows.map(r=>`| ${r.join(' | ')} |`).join('\n');
+}
+
+function collectData() {
+  const metaMap = {};
+  const metaRows = document.querySelectorAll('#tbl_meta tbody tr');
+  metaRows.forEach((tr, i) => {
+    const cb = tr.querySelector('input[type=checkbox]');
+    const inp = tr.querySelector('input[type=text]');
+    if (cb && cb.checked && inp && inp.value.trim()) metaMap[META_FIELDS[i]] = inp.value.trim();
+  });
+  return {
+    cabinet: v('f_cabinet'), taille: v('f_taille'), activite: v('f_activite'),
+    version: v('f_version')||'1.0', date: v('f_date'), auteur: v('f_auteur'),
+    contact_eficio: v('f_contact_eficio'), contact_client: v('f_contact_client'),
+    perimetre: v('f_perimetre'), revisions: getRevisions(),
+    complement: v('f_contexte_complement'),
+    ws_client: chk('chk_ws_client') ? "Espace de travail « Client », pour enregistrer les documents généraux du client" : null,
+    ws_dossier: chk('chk_ws_dossier') ? "Espace de Travail « Dossier », 1 dossier par Affaire" : null,
+    ws_admin: chk('chk_ws_admin') ? "Espace de travail « Administratif », pour la gestion du cabinet / du Département" : null,
+    ws_perso: chk('chk_ws_perso') ? "Espace de travail « Personnel », pour les documents de travail personnels" : null,
+    metadonnees: metaMap,
+    admins: v('f_admins'), securite: v('f_securite_regles'),
+    auth: getActiveAuth(),
+    cfg_cmek: document.getElementById('cfg_cmek').classList.contains('on'),
+    cfg_plink: document.getElementById('cfg_plink').classList.contains('on'),
+    cfg_subdomain: document.getElementById('cfg_subdomain').classList.contains('on'),
+    subdomain: v('f_subdomain'),
+    plan_client: chk('chk_client') ? v('f_plan_client') : null,
+    plan_dossier: chk('chk_dossier') ? v('f_plan_dossier') : null,
+    plan_admin: chk('chk_admin') ? v('f_plan_admin') : null,
+    plan_perso: chk('chk_perso') ? v('f_plan_perso') : null,
+    groupes: v('f_groupes'), tbl_groupes: getTbl('tbl_groupes'),
+    creation_mode: getCreationMode(), logiciel_fact: v('f_logiciel_fact'),
+    regles_dossiers: v('f_regles_dossiers'),
+    include_s8: chk('chk_s8'),
+    source_import: v('f_source_import'), tbl_import: getTbl('tbl_import'), date_ro: v('f_date_ro'),
+    installation: v('f_installation'),
+    besoins: v('f_besoins'), tbl_besoins: getTbl('tbl_besoins'),
+  };
+}
+
+function buildPrompt(d) {
+  const meta = Object.entries(d.metadonnees).length
+    ? Object.entries(d.metadonnees).map(([k,v])=>`  - ${k} → "${v}"`).join('\n')
+    : '  (aucune métadonnée définie)';
+
+  const plan = (label, content) => content !== null
+    ? `### ${label}\n${content || '[À compléter]'}`
+    : `*(section exclue)*`;
+
+  return `Tu es un consultant Eficio expert en GED iManage. Génère un document de Spécifications Fonctionnelles et Techniques (SFT) professionnel en français, basé EXACTEMENT sur le template Eficio / Cloudimanage.
+
+STRUCTURE OBLIGATOIRE (dans cet ordre) :
+1. Page de titre avec tableau de révisions et contacts
+2. Table des matières numérotée
+3. 1. Présentation du projet de GED iManage
+4. 2. Workspace / Espace de travail (2.1 Lexique GED iManage — conserve le tableau complet des icônes et définitions, 2.2 Types d'espaces de travail)
+5. 3. Métadonnées du projet (3.1 Définition, 3.2 Héritage, 3.3 Tableau complet des métadonnées Cloudimanage, 3.4 Métadonnées choisies pour l'implémentation)
+6. 4. Principes de sécurité (4.1 Rôles — conserve le tableau User Capabilities, 4.2 Droits d'accès, 4.3 Règles générales, 4.4 Sécurité dans le projet, 4.5 Connexion à iManage)
+6b. 4bis. Options de configuration (uniquement les options activées listées dans les données ci-dessous)
+7. 5. Modèles (5.1 Flexible Folder, 5.2 Plan de classement, 5.3 Plans implémentés)
+8. 6. Utilisateurs et groupes d'utilisateurs iManage
+9. 7. Création des nouveaux dossiers (7.1 Règles)
+10. 8. Reprise de l'existant (8.1 Périmètre d'import, 8.2 Méthodologie)
+11. 9. Installation des postes utilisateurs
+12. 10. iManage en réponse aux besoins spécifiques du client
+
+RÈGLES IMPÉRATIVES :
+- Conserve tout le contenu générique/pédagogique du template (définitions, tableaux de référence, principes de sécurité standards, liste des types de fichiers importés, méthodologie d'import standard, etc.).
+- Intègre les données ci-dessous aux emplacements appropriés (là où était [à compléter] ou le surlignage jaune).
+- Les sections de plans de classement marquées "section exclue" doivent être OMISES du document.
+- Si une valeur est vide, maintiens "[À compléter]" dans le document.
+- Format : Markdown structuré avec # ## ### pour les titres et tableaux Markdown.
+
+═══ DONNÉES PROJET ═══
+Cabinet : ${d.cabinet||'[Nom Cabinet]'} | Taille : ${d.taille||'XX'} personnes | Activité : ${d.activite||'[à compléter]'}
+Version : ${d.version} | Date : ${d.date} | Auteur : ${d.auteur||'[à compléter]'}
+Contact Eficio : ${d.contact_eficio||'[à compléter]'} | Contact Client : ${d.contact_client||'[à compléter]'}
+Périmètre : ${d.perimetre||'[à compléter]'}
+
+Révisions :
+${tblMd(d.revisions,['Date','Modification','Version','Créé par'])}
+
+Compléments contexte : ${d.complement||'Aucun'}
+
+Espaces de travail (inclure seulement ceux listés) :
+${[d.ws_client, d.ws_dossier, d.ws_admin, d.ws_perso].filter(Boolean).map(w=>'- '+w).join('\n') || '(aucun espace sélectionné)'}
+
+Métadonnées implémentation :
+${meta}
+
+Administrateurs iManage : ${d.admins||'[à compléter]'}
+Règles de sécurité projet : ${d.securite||'[à compléter]'}
+Authentification : ${d.auth||'[à compléter]'}
+
+Options de configuration activées :${d.cfg_cmek ? '\n- CMEK (Azure Key Vault) : chiffrement des données avec les clés du client hébergées dans Azure Key Vault' : ''}${d.cfg_plink ? '\n- Private Links (Azure Premium) : connexion privée sécurisée sans exposition sur internet public' : ''}${d.cfg_subdomain && d.subdomain ? '\n- Sous-domaine personnalisé : https://' + d.subdomain + '.cloudimanage.com' : ''}${!d.cfg_cmek && !d.cfg_plink && !(d.cfg_subdomain && d.subdomain) ? '\n(aucune option de configuration avancée activée)' : ''}
+
+Plans de classement :
+${plan('Plan CLIENT', d.plan_client)}
+${plan('Plan DOSSIER', d.plan_dossier)}
+${plan('Plan ADMINISTRATIF', d.plan_admin)}
+${plan('Plan ESPACE PERSONNEL', d.plan_perso)}
+
+Groupes utilisateurs : ${d.groupes||'[à compléter]'}
+${tblMd(d.tbl_groupes,['Groupe','Rôle iManage','Droits d\'accès'])}
+
+Création dossiers : ${d.creation_mode==='manuel'?'Manuelle par les utilisateurs':d.creation_mode==='efxtool'?'Via EfXtool, logiciel : '+(d.logiciel_fact||'[à compléter]'):'Mixte, logiciel : '+(d.logiciel_fact||'[à compléter]')}
+Règles dossiers : ${d.regles_dossiers||'[à compléter]'}
+
+${d.include_s8 ? `Source import : ${d.source_import||'[à compléter]'}
+${tblMd(d.tbl_import,['Espaces initiaux','Correspondance iManage','Nb fichiers','Taille Go','Type import'])}
+Mise en lecture seule : ${d.date_ro||'[à compléter]'}` : '*(Section 8 exclue du document)*'}
+
+Installation postes : ${d.installation||'[à compléter]'}
+
+Besoins spécifiques : ${d.besoins||'[à compléter]'}
+${tblMd(d.tbl_besoins,['Besoin client','Solution iManage','Commentaire'])}`;
+}
+
+async function generate() {
+  if (!apiKey) { document.getElementById('errorMsg').textContent = '⚠ Veuillez enregistrer votre clé API Gemini.'; return; }
+  const d = collectData();
+  const btn = document.getElementById('btnGen');
+  btn.disabled = true;
+  document.getElementById('btnIcon').innerHTML = '<span class="spinner"></span>';
+  document.getElementById('btnTxt').textContent = 'Génération en cours…';
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('errorMsg').textContent = '';
+  let pct = 0;
+  const timer = setInterval(() => { pct = Math.min(pct + Math.random()*6, 88); document.getElementById('progressFill').style.width = pct+'%'; }, 400);
+  document.getElementById('statusMsg').textContent = 'Génération du document SFT Eficio en cours…';
+  try {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ contents:[{parts:[{text:buildPrompt(d)}]}], generationConfig:{temperature:0.3,maxOutputTokens:8192} })
+    });
+    if (!resp.ok) { const e=await resp.json().catch(()=>({})); throw new Error(e?.error?.message||`Erreur HTTP ${resp.status}`); }
+    const json = await resp.json();
+    resultText = json?.candidates?.[0]?.content?.parts?.[0]?.text||'';
+    if (!resultText) throw new Error('Réponse vide de l\'API.');
+    clearInterval(timer);
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('resTitle').textContent = `SFT — ${d.cabinet||'iManage'}`;
+    document.getElementById('resSubtitle').textContent = `v${d.version} · Généré le ${new Date().toLocaleDateString('fr-FR')}`;
+    document.getElementById('resultBox').textContent = resultText;
+    document.getElementById('tabResult').style.display = 'inline-block';
+    showTab('result');
+    document.getElementById('statusMsg').textContent = '';
+  } catch(e) {
+    clearInterval(timer);
+    document.getElementById('errorMsg').textContent = `❌ ${e.message}`;
+    document.getElementById('progressFill').style.width = '0%';
+  } finally {
+    btn.disabled = false;
+    document.getElementById('btnIcon').textContent = '✦';
+    document.getElementById('btnTxt').textContent = 'Générer le document SFT';
+    setTimeout(()=>{ document.getElementById('progressWrap').style.display='none'; document.getElementById('progressFill').style.width='0%'; },1000);
+  }
+}
+
+function regenerate() { showTab('form'); setTimeout(generate,100); }
+
+function copyResult() {
+  navigator.clipboard.writeText(resultText).then(()=>{
+    const b=event.target, orig=b.textContent; b.textContent='✓ Copié!';
+    setTimeout(()=>b.textContent=orig,2000);
+  });
+}
+
+function exportMarkdown() {
+  const name = (v('f_cabinet')||'SFT').replace(/\s+/g,'_');
+  dl(new Blob([resultText],{type:'text/markdown'}), `SFT_${name}.md`);
+}
+
+function exportWord() {
+  const lines = resultText.split('\n');
+  let html = `<html><head><meta charset="utf-8"><style>
+body{font-family:Arial,sans-serif;font-size:11pt;margin:2.5cm 2cm;}
+h1{font-size:20pt;color:#1a3a5c;border-bottom:2px solid #2563eb;padding-bottom:6px;margin-top:2em;}
+h2{font-size:14pt;color:#1e40af;border-bottom:1px solid #bfdbfe;padding-bottom:3px;margin-top:1.5em;}
+h3{font-size:12pt;color:#1d4ed8;margin-top:1.2em;}h4{font-size:11pt;margin-top:1em;}
+table{border-collapse:collapse;width:100%;margin:10px 0;font-size:10pt;}
+th,td{border:1px solid #d1d5db;padding:6px 10px;}th{background:#dbeafe;font-weight:700;}
+p{line-height:1.65;margin:.4em 0;}li{line-height:1.65;}
+</style></head><body>`;
+  let inUL=false,inOL=false;
+  const close=()=>{if(inUL){html+='</ul>';inUL=false;}if(inOL){html+='</ol>';inOL=false;}};
+  lines.forEach(l=>{
+    if(l.startsWith('#### ')){close();html+=`<h4>${esc(l.slice(5))}</h4>`;}
+    else if(l.startsWith('### ')){close();html+=`<h3>${esc(l.slice(4))}</h3>`;}
+    else if(l.startsWith('## ')){close();html+=`<h2>${esc(l.slice(3))}</h2>`;}
+    else if(l.startsWith('# ')){close();html+=`<h1>${esc(l.slice(2))}</h1>`;}
+    else if(/^[\-\*] /.test(l)){if(!inUL){html+='<ul>';inUL=true;}html+=`<li>${esc(l.slice(2))}</li>`;}
+    else if(/^\d+\. /.test(l)){if(!inOL){html+='<ol>';inOL=true;}html+=`<li>${esc(l.replace(/^\d+\. /,''))}</li>`;}
+    else if(l.trim().startsWith('|')){close();html+=l+'<br>';}
+    else if(l.trim()){close();html+=`<p>${esc(l)}</p>`;}
+  });
+  close(); html+='</body></html>';
+  const name=(v('f_cabinet')||'SFT').replace(/\s+/g,'_');
+  dl(new Blob([html],{type:'application/msword'}),`SFT_${name}.doc`);
+}
+
+function esc(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*]+)\*/g,'<em>$1</em>');
+}
+function dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);}
+
+function resetForm(){
+  document.querySelectorAll('#panelForm input[type=text],#panelForm input[type=date],#panelForm textarea').forEach(e=>{
+    if(e.id==='f_version')e.value='1.0'; else e.value='';
+  });
+  document.getElementById('f_date').valueAsDate=new Date();
+  const defaults={f_ws_client:"Espace de travail « Client », pour enregistrer les documents généraux du client",f_ws_dossier:"Espace de Travail « Dossier », 1 dossier par Affaire",f_ws_admin:"Espace de travail « Administratif » pour la gestion du cabinet / du Département",f_ws_perso:"Espace de travail « Personnel » pour les documents de travail personnels"};
+  ['auth_sso','auth_pwd','auth_saml','cfg_cmek','cfg_plink','cfg_subdomain','cm_manuel','cm_efxtool','cm_mixte'].forEach(id=>{
+    document.getElementById(id).classList.remove('on');
+  });
+  document.getElementById('subdomain_row').classList.remove('active');
+  document.getElementById('chk_s8').checked = true;
+  toggleSection8(true);
+  document.getElementById('f_subdomain').value = '';
+  document.getElementById('errorMsg').textContent='';
+}
+</script>
+</body>
+</html>
